@@ -1,0 +1,88 @@
+import logging
+import sys
+from pathlib import Path
+from algosdk.atomic_transaction_composer import transaction
+from beaker import sandbox
+from asas.nfts.arcs import arc3, arc19
+import json
+from dotenv import load_dotenv
+import os
+import algosdk
+
+
+logging.basicConfig(level=logging.DEBUG, format="%(asctime)s %(levelname)-10s: %(message)s")
+logger = logging.getLogger(__name__)
+logger.info("Loading .env")
+load_dotenv()
+root_path = Path(__file__).parent
+
+class account:
+    def __init__(self, address, private_key):
+        self.address = address
+        self.private_key = private_key
+
+def main(action: str) -> None:
+    # -------SANDBOX--------- #
+    client = sandbox.get_algod_client()
+    accts = sandbox.get_accounts()
+    acct_sender = accts.pop()  # Replace by your address
+
+    # -------TESTNET--------- #
+    # To use Testnet, comment the SANDBOX Part
+    # modify the .env file with: 
+    # ALGOD_TOKEN=
+    # ALGOD_SERVER=https://testnet-api.algonode.cloud
+    # ALGOD_PORT=443
+    # If you don't have a testnet account create one:
+    # acct = algosdk.account.generate_account()
+    # print(acct) #Create acct_sender based on the print
+    # acct_sender = account(acct[1], acct[0])
+    # Add funds using https://bank.testnet.algorand.network/
+
+
+    # ALGOD_SERVER = os.environ.get("ALGOD_SERVER")
+    # ALGOD_TOKEN = os.environ.get("ALGOD_TOKEN")
+    # client = algosdk.v2client.algod.AlgodClient(ALGOD_TOKEN, ALGOD_SERVER)
+
+    # ---------INPUT--------- #
+
+    metadata_file = "asas/nfts/metadata.json"
+    folder_image = "asas/nfts/Collection/Images/"
+    folder_json = "asas/nfts/Collection/Metadata/"
+    unitname_prefix = "ALGO"  # UnitName (eg for 1 file : ALGO ->  ALGO0001)
+    sender = acct_sender.address
+    manager = acct_sender.address
+    reserve = acct_sender.address
+    upload_ipfs = True
+    pk_sender = acct_sender.private_key
+    match action:
+        case "immutable":
+            logger.info(f"Create immutable NFT collection")
+            with open(metadata_file, "r") as f:
+                nfts_metadata = json.load(f)
+            arc3.upload_ipfs(folder_image, folder_json, nfts_metadata, upload_ipfs)
+            txns = arc3.create_acgf_txn(client, nfts_metadata, folder_json, unitname_prefix, sender, manager, reserve)
+
+            for txn in txns:
+                txid = client.send_transaction(txn.sign(pk_sender))
+                res = transaction.wait_for_confirmation(client, txid, 4)
+                print(f"Immutable ARC-3 NFT Created, Asset ID: {res['asset-index']}")
+
+        case "mutable":
+            logger.info(f"Create mutable NFT collection")
+            with open(metadata_file, "r") as f:
+                nfts_metadata = json.load(f)
+            arc3.upload_ipfs(folder_image, folder_json, nfts_metadata, upload_ipfs)
+            txns = arc19.create_acgf_txn(client, nfts_metadata, folder_json, unitname_prefix, sender, manager)
+
+            for txn in txns:
+                txid = client.send_transaction(txn.sign(pk_sender))
+                res = transaction.wait_for_confirmation(client, txid, 4)
+                print(f"Mutable ARC-19 NFT Created, Asset ID: {res['asset-index']}")
+
+
+if __name__ == "__main__":
+    if len(sys.argv) > 1:
+        main(sys.argv[1])
+    else:
+        logger.info(f"Please select mutable or immutable")
