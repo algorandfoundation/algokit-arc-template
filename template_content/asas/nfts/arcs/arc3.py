@@ -12,7 +12,7 @@ def file_integrity(filename: str) -> str:
     with open(filename, "rb") as f:
         bytes = f.read()  # read entire file as bytes
         readable_hash = hashlib.sha256(bytes).hexdigest()
-        return "sha-256" + readable_hash
+        return "sha256-" + readable_hash
 
 
 def file_mimetype(filename: str) -> str:
