@@ -374,7 +374,7 @@ def upload_ipfs(folder_image: str, folder_json: str, nfts_metadata: dict, upload
         image_mimetype = file_mimetype(current_file)
         nft_metadata_string = create_metadata(
             name=nft_metadata["name"],
-            description=nft_metadata["name"],
+            description=nft_metadata["description"],
             image=url_prefix_images + "/" + nft_metadata["image"],
             image_integrity=image_integrity,
             image_mimetype=image_mimetype,
